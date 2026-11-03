@@ -31,6 +31,21 @@ Simulated with 50 orders, 2 robots and 5 paired replications:
 
 ± values are 95% confidence intervals. All three differences are statistically significant (paired t-test, 5% level). Robot timings are estimates until the first robot is measured; the physical runs will test whether the predicted gain holds.
 
+## Second result: order batching
+
+If several orders need the same pod, one trip can serve all of them. With ABC slotting, 50 orders, 2 robots and 5 paired replications:
+
+| Batch size | Throughput (orders/hr) | Pod trips per order | Avg order completion (min) |
+| ---: | ---: | ---: | ---: |
+| 1 (no batching) | 150.9 | 1.5 | 10.5 |
+| 2 | 166.7 (+10%) | 1.3 | 9.5 |
+| 3 | 179.0 (+19%) | 1.2 | 8.9 |
+| 5 | 200.3 (+33%) | 0.9 | 7.9 |
+
+Every change from batch size 1 is statistically significant. Combined with ABC slotting, batches of 5 more than double throughput over the random, unbatched baseline (95.7 → 200.3 orders/hr).
+
+One limit of this test: all 50 orders are released at once, so no order ever waits for batch-mates. With orders arriving over time, large batches should start to delay early orders. That trade-off is the next experiment.
+
 ## Run the simulation
 
 Requires Python 3.10+.
@@ -43,6 +58,7 @@ pip install -r requirements.txt
 python -m warehouse.layout         # floor map and an example route
 python -m experiments.slotting     # the slotting experiment
 python -m experiments.slotting --robots 3 --orders 200
+python -m experiments.batching     # the batching experiment
 ```
 
 ## How the code is organized
@@ -54,13 +70,15 @@ python -m experiments.slotting --robots 3 --orders 200
 | `warehouse/orders.py` | Pareto-style demand, order generation, slotting policies |
 | `warehouse/sim.py` | SimPy model of robots, pods and the packing station |
 | `experiments/slotting.py` | Random vs ABC slotting with confidence intervals |
+| `experiments/batching.py` | Batch sizes 1, 2, 3 and 5, each compared with no batching |
 
 ## Roadmap
 
 - [x] Floor layout, route planner and order generator
 - [x] SimPy digital twin
 - [x] Experiment 1: slotting
-- [ ] Experiment 2: order batching
+- [x] Experiment 2: order batching
+- [ ] Experiment 3: batching with orders arriving over time
 - [ ] Build robot 1 and calibrate the twin with measured timings
 - [ ] Overhead camera tracking and live dashboard
 - [ ] Second robot with traffic control

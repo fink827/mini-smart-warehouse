@@ -13,7 +13,7 @@ from .layout import PODS, PICK, shortest_path, travel_seconds, path_cells
 from .orders import generate_orders, POLICIES
 
 
-def run(policy="abc", seed=1, n_orders=C.N_ORDERS, n_robots=C.N_ROBOTS):
+def run(policy="abc", seed=1, n_orders=C.N_ORDERS, n_robots=C.N_ROBOTS, batch_size=1):
     env = simpy.Environment()
     station = simpy.Resource(env, capacity=1)
     tasks = simpy.Store(env)
@@ -21,17 +21,21 @@ def run(policy="abc", seed=1, n_orders=C.N_ORDERS, n_robots=C.N_ROBOTS):
     slotting = POLICIES[policy](seed)
 
     log = {"trips": [], "busy": [0.0] * n_robots, "order_done": {}}
-    remaining = {}
+    remaining = {oid: 0 for oid in range(len(orders))}
     all_done = env.event()
 
-    # Turn every order into pod trips (lines in the same pod share one trip)
-    for oid, lines in enumerate(orders):
+    # Group orders into batches (in arrival order). Within a batch, every pod
+    # that any order needs is fetched once and serves all of those orders.
+    for b0 in range(0, len(orders), batch_size):
         by_pod = {}
-        for sku, units in lines:
-            by_pod.setdefault(slotting[sku], []).append((sku, units))
-        remaining[oid] = len(by_pod)
+        for oid in range(b0, min(b0 + batch_size, len(orders))):
+            for sku, units in orders[oid]:
+                by_pod.setdefault(slotting[sku], []).append((oid, sku, units))
         for pod, plines in by_pod.items():
-            tasks.put({"order": oid, "pod": pod, "lines": plines})
+            served = sorted({oid for oid, _, _ in plines})
+            for oid in served:
+                remaining[oid] += 1
+            tasks.put({"orders": served, "pod": pod, "lines": [(s, u) for _, s, u in plines]})
 
     def robot(rid):
         here = C.DOCKS[rid % len(C.DOCKS)]
@@ -57,12 +61,12 @@ def run(policy="abc", seed=1, n_orders=C.N_ORDERS, n_robots=C.N_ROBOTS):
             log["busy"][rid] += env.now - start - wait
             log["trips"].append({"robot": rid, "cells": path_cells(p1) + path_cells(p2) + path_cells(p3),
                                  "wait": wait, "duration": env.now - start})
-            oid = task["order"]
-            remaining[oid] -= 1
-            if remaining[oid] == 0:
-                log["order_done"][oid] = env.now
-                if len(log["order_done"]) == len(orders):
-                    all_done.succeed()
+            for oid in task["orders"]:
+                remaining[oid] -= 1
+                if remaining[oid] == 0:
+                    log["order_done"][oid] = env.now
+            if len(log["order_done"]) == len(orders) and not all_done.triggered:
+                all_done.succeed()
 
     for rid in range(n_robots):
         env.process(robot(rid))
@@ -74,8 +78,10 @@ def run(policy="abc", seed=1, n_orders=C.N_ORDERS, n_robots=C.N_ROBOTS):
     return {
         "policy": policy,
         "seed": seed,
+        "batch_size": batch_size,
         "orders": len(orders),
         "trips": len(trips),
+        "trips_per_order": len(trips) / len(orders),
         "makespan_min": makespan / 60,
         "throughput_per_hr": len(orders) / makespan * 3600,
         "avg_completion_min": statistics.mean(log["order_done"].values()) / 60,
