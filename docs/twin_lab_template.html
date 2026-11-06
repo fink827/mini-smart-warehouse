@@ -1,0 +1,445 @@
+<title>Warehouse Twin Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; the replay breaks out to two side-by-side floors (stacked on phones).
+   Look: the tabletop floor itself — pale floor, safety-yellow tape, robots as colored discs. */
+:root {
+  --paper: #eef1ef;
+  --panel: #f8faf9;
+  --ink: #1b2320;
+  --muted: #5b6a64;
+  --line: #cfd8d4;
+  --tape: #c99700;
+  --tape-soft: #e8d27a;
+  --alarm: #cc2f2a;
+  --ok: #1d7a55;
+  --r0: #2a62a6; --r1: #0e8770; --r2: #7b4cc4; --r3: #b4560f;
+  --pod: #8a7357; --pod-fill: #e3d9c9;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121715; --panel: #19201d; --ink: #e2e9e6; --muted: #93a39c; --line: #2d3833;
+  --tape: #e9b931; --tape-soft: #6b5a1c; --alarm: #ff5f57; --ok: #4cc58f;
+  --r0: #6ea1ea; --r1: #39c6a4; --r2: #ad8cf0; --r3: #f0954c; --pod: #b9a283; --pod-fill: #3a3126;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #121715; --panel: #19201d; --ink: #e2e9e6; --muted: #93a39c; --line: #2d3833;
+  --tape: #e9b931; --tape-soft: #6b5a1c; --alarm: #ff5f57; --ok: #4cc58f;
+  --r0: #6ea1ea; --r1: #39c6a4; --r2: #ad8cf0; --r3: #f0954c; --pod: #b9a283; --pod-fill: #3a3126;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 16px/1.6 var(--body); margin: 0; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.col { max-width: 720px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; line-height: 1.05; text-wrap: balance; margin: 0; letter-spacing: 0.005em; }
+h1 { font-size: clamp(2.4rem, 6vw, 3.6rem); }
+h2 { font-size: clamp(1.7rem, 3.6vw, 2.2rem); }
+h3 { font-size: 1.25rem; }
+p { margin: 0; }
+.eyebrow { font: 500 0.75rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+.lede { font-size: 1.15rem; color: var(--ink); max-width: 64ch; }
+.muted { color: var(--muted); }
+section { display: grid; gap: 18px; padding-block: 44px 8px; border-top: 1px solid var(--line); margin-top: 44px; }
+header { display: grid; gap: 16px; }
+.tape { height: 6px; width: 96px; background: repeating-linear-gradient(-45deg, var(--tape) 0 10px, transparent 10px 16px); border-radius: 1px; }
+code, .num { font-family: var(--mono); font-size: 0.9em; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* replay */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+select, button, input[type=range] { font: inherit; }
+select, button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 600; min-width: 84px; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--tape); outline-offset: 2px; }
+.speeds { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.speeds button { border: 0; border-radius: 0; padding: 7px 10px; font-family: var(--mono); font-size: 0.8rem; }
+.speeds button[aria-pressed="true"] { background: var(--tape-soft); }
+#scrub { flex: 1 1 220px; accent-color: var(--tape); min-width: 0; }
+.clock { font: 500 0.95rem var(--mono); font-variant-numeric: tabular-nums; min-width: 6ch; }
+.floors { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .floors { grid-template-columns: 1fr; } }
+.floor { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.floor-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.floor-head h3 { font-size: 1.15rem; }
+.tag { font: 500 0.7rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 7px; border-radius: 4px; }
+.tag.bad { color: var(--alarm); border: 1px solid currentColor; }
+.tag.good { color: var(--ok); border: 1px solid currentColor; }
+canvas { width: 100%; height: auto; display: block; aspect-ratio: 8.6 / 7; max-width: 100%; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { display: grid; gap: 2px; }
+.stat b { font: 600 1.25rem/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.78rem; color: var(--muted); }
+.stat.alarm b { color: var(--alarm); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.85rem; color: var(--muted); }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin-right: 6px; }
+.legend i.sq { border-radius: 2px; background: var(--pod-fill); border: 1.5px solid var(--pod); }
+.legend i.ring { background: transparent; border: 2px solid var(--alarm); }
+
+/* findings */
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+figcaption { font-size: 0.9rem; color: var(--muted); }
+figure h3 { font-size: 1.1rem; }
+svg { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+svg .lbl { fill: var(--ink); font-size: 11.5px; }
+.key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.82rem; color: var(--muted); }
+.key span::before { content: ""; display: inline-block; width: 16px; height: 0; border-top: 2.5px solid var(--c); margin-right: 6px; vertical-align: 4px; }
+.key span.dash::before { border-top-style: dashed; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { font: 500 0.72rem var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+td.best { font-weight: 600; }
+.pill { display: inline-block; font: 500 0.72rem/1 var(--mono); padding: 3px 6px; border-radius: 4px; background: var(--tape-soft); color: var(--ink); }
+.callouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.callout { border-left: 3px solid var(--tape); padding: 4px 0 4px 14px; display: grid; gap: 4px; }
+.callout b { font-family: var(--display); font-size: 1.3rem; font-weight: 700; }
+ol.steps { margin: 0; padding-left: 1.2em; display: grid; gap: 10px; max-width: 72ch; }
+ul.plain { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; max-width: 72ch; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="tape" aria-hidden="true"></div>
+  <span class="eyebrow">Mini Smart Warehouse · digital twin audit · /*DATE*/</span>
+  <h1>Warehouse Twin Lab</h1>
+  <p class="lede">The original simulation let robots drive through each other and share shelf pods. I rebuilt it with real traffic control, re-checked the first two experiments, and ran Experiment 3. Watch the same 50 orders on both models below.</p>
+</header>
+
+<section id="replay" style="border-top:0; margin-top:16px; padding-top:24px">
+  <div class="controls">
+    <label class="sr" for="scen" hidden>Scenario</label>
+    <select id="scen" aria-label="Scenario"></select>
+    <button class="primary" id="play" type="button">Play</button>
+    <div class="speeds" role="group" aria-label="Playback speed">
+      <button type="button" data-s="5">5×</button><button type="button" data-s="15" aria-pressed="true">15×</button><button type="button" data-s="40">40×</button>
+    </div>
+    <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Replay time">
+    <span class="clock" id="clock">0:00</span>
+  </div>
+  <div class="floors">
+    <div class="floor">
+      <div class="floor-head"><h3>Original twin <span class="muted" style="font-weight:600">sim.py</span></h3><span class="tag bad">physically impossible</span></div>
+      <canvas id="cvA" width="860" height="700" aria-label="Animated floor, original twin"></canvas>
+      <div class="stats">
+        <div class="stat"><b id="aDone">0/50</b><span>orders done</span></div>
+        <div class="stat alarm"><b id="aCol">0</b><span>robot collisions</span></div>
+        <div class="stat alarm"><b id="aPod">0</b><span>pods held twice</span></div>
+      </div>
+    </div>
+    <div class="floor">
+      <div class="floor-head"><h3>Traffic-aware twin <span class="muted" style="font-weight:600">twin.py</span></h3><span class="tag good">0 violations</span></div>
+      <canvas id="cvB" width="860" height="700" aria-label="Animated floor, traffic-aware twin"></canvas>
+      <div class="stats">
+        <div class="stat"><b id="bDone">0/50</b><span>orders done</span></div>
+        <div class="stat"><b id="bCol">0</b><span>robot collisions</span></div>
+        <div class="stat"><b id="bWait">0 s</b><span>yielding in traffic</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--r0)"></i><i style="background:var(--r1)"></i><i style="background:var(--r2)"></i><i style="background:var(--r3)"></i>robots</span>
+    <span><i class="sq"></i>shelf pod (on a robot when carried)</span>
+    <span><i class="ring"></i>collision or pod held by two robots</span>
+    <span>Yellow lines are the floor tape; the packing station is on the right edge.</span>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Finding 1 · fidelity</span>
+  <h2>The old twin is close at 2 robots and badly wrong at 4</h2>
+  <div class="col"><p>With your current 2 robots, the original twin over-predicts ABC throughput by about /*F2*/%, so the slotting result in the README holds. Each robot you add makes it worse: at 4 robots it over-predicts ABC by /*F4*/% and overstates ABC's advantage over random slotting. Both models use identical orders and timings; the only difference is that robots in the new twin are solid and can't share a pod.</p></div>
+  <div class="figs">
+    <figure><h3>Throughput vs fleet size, ABC slotting</h3><div id="figFid"></div>
+      <div class="key"><span style="--c:var(--muted)" class="dash">original twin</span><span style="--c:var(--tape)">traffic-aware twin</span></div>
+      <figcaption>Orders/hr, 50 orders, mean of /*SEEDS*/ paired replications. The gap is throughput that never existed.</figcaption></figure>
+    <figure><h3>Where 4 robots' time goes (ABC)</h3><div id="figTime"></div>
+      <figcaption>Traffic-aware twin, 10 replications. Two bottlenecks: one pod (B4) carries the top 3 items and is needed on 42% of trips, but only one robot can hold it; and every pick blocks the column-6 aisle beside packing.</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Finding 2 · slotting</span>
+  <h2>With more robots, spread the fast movers out, unless you batch</h2>
+  <div class="col"><p>ABC puts the three best sellers in the single closest pod, which turns that pod into a one-at-a-time bottleneck. A new policy, <code>spread:W</code>, deals the fast movers round-robin across the W closest pods. At 3 to 4 robots any spread over 2 to 4 pods helps (the exact best width is a statistical tie), and the original twin can't see any of it: it says spreading always hurts.</p></div>
+  <div class="figs">
+    <figure><h3>Throughput change vs plain ABC, no batching</h3><div id="figSpread"></div>
+      <div class="key"><span style="--c:var(--r0)">2 robots</span><span style="--c:var(--r1)">3 robots</span><span style="--c:var(--r3)">4 robots</span><span style="--c:var(--muted)" class="dash">4 robots, original twin</span></div>
+      <figcaption>Paired against W=1 (plain ABC); dots are significant at 5%. Batching in groups of 5 erases the effect: plain ABC wins again at every fleet size, because batching already relieves the hot pod.</figcaption></figure>
+    <div class="callouts" style="align-content:start">/*SPREAD_CALLOUTS*/</div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Finding 3 · Experiment 3</span>
+  <h2>When orders trickle in, pool them at the pod</h2>
+  <div class="col"><p>Orders now arrive at random over a 4-hour shift (Poisson, 30-minute warm-up dropped, /*S_SEEDS*/ paired replications per point). Fixed-size and timed batches cut trips but make early orders wait for batch-mates. <b>Pool</b> releases every order immediately, and if a trip to the same pod is already waiting for a robot, the new lines ride along. It batches more as the floor gets busier, with no waiting by design.</p><p style="margin-top:12px">/*POOL_NOTE*/</p></div>
+  <div class="figs">
+    <figure><h3>Mean response time vs order rate, 2 robots</h3><div id="figStream"></div>
+      <div class="key" id="streamKey"></div>
+      <figcaption>Response = arrival to last item picked. A line stops where that policy can no longer keep up (queue grows without bound). The table covers all seven policies tested.</figcaption></figure>
+    <figure><h3>Capacity by release policy</h3>
+      <div class="tablewrap"><table id="capTable"></table></div>
+      <figcaption>Stable: highest tested rate where the queue stays bounded in at least 80% of runs. Service level: rates where 95% of orders finish within 5 minutes. Fixed batches miss it at low volume because orders sit waiting for batch-mates.</figcaption></figure>
+  </div>
+  /*FLEET_BLOCK*/
+</section>
+
+
+<section>
+  <span class="eyebrow">Finding 4 · layout</span>
+  <h2>From the third robot on, move packing off the aisle</h2>
+  <div class="col"><p>The pick point sits on the column-6 tape. While a robot is picking, nothing else can use that stretch of column 6 or wait right beside it. Putting the station in a bay one cell east of the column costs every trip a short detour, but keeps the column open. The trade flips with fleet size: without batching at 3 robots, with batching at 4. The build can be laid out for it now.</p></div>
+  <div class="figs">
+    <figure><h3>Bay station vs aisle station, throughput change</h3><div id="figStation"></div>
+      <div class="key"><span style="--c:var(--tape)">no batching</span><span style="--c:var(--r0)">batches of 5</span></div>
+      <figcaption>50 orders, ABC slotting, /*SEEDS*/ paired replications; whiskers are 95% confidence intervals. Below zero the aisle station is better.</figcaption></figure>
+    /*STATION_TABLE*/
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">For the build</span>
+  <h2>What this changes about the physical warehouse</h2>
+  <ol class="steps">/*BUILD_STEPS*/</ol>
+</section>
+
+<section>
+  <span class="eyebrow">Method</span>
+  <h2>How the new twin works and how it was checked</h2>
+  <ul class="plain">
+    <li><b>Planner.</b> Prioritized space-time A* over (node, heading, time) with a reservation table on 0.4 s ticks. A robot crossing a tape segment books both end nodes for the whole crossing, so robots can't swap places or tailgate inside one cell. The pick point sits on the column-6 tape, so traffic along that column passes through it, and no robot may stand half a cell from a robot that is picking. Finished robots stay booked where they parked. Turn and travel times are the same as <code>config.py</code>.</li>
+    <li><b>Fleet manager.</b> One robot per pod (pod locking); a trip goes to the robot already parked under that pod if there is one, otherwise the nearest idle robot.</li>
+    <li><b>Checks.</b> With 1 robot the new twin matches the old one within 0.3%. An independent validator rebuilds every path from the plan log and found 0 collisions, 0 shared pods, 0 station overlaps and 0 clearance violations across /*VAL_TRIPS*/ trips. Mutation tests confirm it catches errors: a planner with collision checks removed produced over 100 detected collisions in one run, and removing pod locking makes the planner stop with a clear deadlock error. A separate code review caught that an earlier version of the planner let robots cut past the pick point while another robot was picking; that is fixed, the validator now checks for it, and every result here was rerun afterwards.</li>
+    <li><b>Statistics.</b> Common random numbers throughout (every policy sees the same orders at the same times); 95% confidence intervals from paired t-tests.</li>
+    <li><b>Limits.</b> Robot timings are still the placeholders in <code>config.py</code>; calibrating them with robot 1 remains the most important next step. Robots follow their plans exactly, with no slip or sensor delay.</li>
+  </ul>
+</section>
+</div>
+
+<script>
+const DATA = /*DATA*/;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+
+/* ---------------- replay ---------------- */
+const R = DATA.replay;
+const scenSel = document.getElementById("scen");
+R.scenarios.forEach((s, i) => { const o = document.createElement("option"); o.value = i; o.textContent = s.label; scenSel.appendChild(o); });
+scenSel.value = 1;
+let S = R.scenarios[1], T = 0, playing = false, speed = 15, last = null;
+const cvA = document.getElementById("cvA"), cvB = document.getElementById("cvB");
+const W = 860, H = 700, M = 64, U = (W - M * 2 - 40) / (R.grid.cols - 1);
+const px = (x, y) => [M + x * U, M + y * U];
+const endT = () => Math.max(S.ideal.end, S.traffic.end);
+
+function posAt(track, t) {
+  let lo = 0, hi = track.length - 1;
+  if (t <= track[0][0]) return [track[0][1], track[0][2], track[0][3]];
+  if (t >= track[hi][0]) return [track[hi][1], track[hi][2], track[hi][3]];
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (track[m][0] <= t) lo = m; else hi = m; }
+  const a = track[lo], b = track[hi], f = b[0] > a[0] ? (t - a[0]) / (b[0] - a[0]) : 1;
+  return [a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, a[3]];
+}
+
+function drawFloor(ctx, model, t) {
+  const col = { paper: css("--panel"), ink: css("--ink"), muted: css("--muted"), tape: css("--tape"), pod: css("--pod"),
+    podFill: css("--pod-fill"), alarm: css("--alarm"), robots: ["--r0", "--r1", "--r2", "--r3"].map(css) };
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = col.paper; ctx.fillRect(0, 0, W, H);
+  // tape grid
+  ctx.strokeStyle = col.tape; ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.globalAlpha = 0.85;
+  for (let r = 0; r < R.grid.rows; r++) { const [x0, y] = px(0, r), [x1] = px(R.grid.cols - 1, r); ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); }
+  for (let c = 0; c < R.grid.cols; c++) { const [x, y0] = px(c, 0), [, y1] = px(c, R.grid.rows - 1); ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  // packing station
+  const [sx, sy] = px(R.pick[0], R.pick[1]);
+  ctx.fillStyle = col.ink; ctx.fillRect(sx + 18, sy - U * 0.75, 26, U * 1.5);
+  ctx.save(); ctx.translate(sx + 31, sy); ctx.rotate(Math.PI / 2); ctx.fillStyle = col.paper; ctx.font = "600 13px " + css("--mono"); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("PACK", 0, 0); ctx.restore();
+  ctx.beginPath(); ctx.arc(sx, sy, 5, 0, 7); ctx.fillStyle = col.tape; ctx.fill();
+  // robots and which pods are out
+  const tracks = model.tracks, carried = new Map(), pos = [];
+  tracks.forEach((tr, i) => { const p = posAt(tr, t); pos.push(p); if (p[2] >= 0) { carried.set(p[2], (carried.get(p[2]) || 0) + 1); } });
+  const podSize = U * 0.58;
+  R.pods.forEach((p, i) => {
+    if (carried.has(i)) { const [x, y] = px(p.x, p.y); ctx.setLineDash([4, 4]); ctx.strokeStyle = col.muted; ctx.lineWidth = 1.2; ctx.strokeRect(x - podSize / 2, y - podSize / 2, podSize, podSize); ctx.setLineDash([]); return; }
+    drawPod(ctx, p.x, p.y, p.name, col, false);
+  });
+  pos.forEach((p, i) => {
+    const [x, y] = px(p[0], p[1]);
+    ctx.beginPath(); ctx.arc(x, y, U * 0.31, 0, 7); ctx.fillStyle = col.robots[i % 4]; ctx.fill();
+    if (p[2] >= 0) drawPod(ctx, p[0], p[1], R.pods[p[2]].name, col, carried.get(p[2]) > 1, col.robots[i % 4]);
+  });
+  // conflicts (original twin only)
+  if (model.events) {
+    for (const e of model.events) {
+      if (e.t > t) break;
+      if (t > e.t1 + 1.5) continue;
+      let x, y;
+      if (e.kind === "collision") { [x, y] = px(e.x, e.y); }
+      else { const p = pos[e.robots[0]]; [x, y] = px(p[0], p[1]); }
+      ctx.beginPath(); ctx.arc(x, y, U * 0.47, 0, 7); ctx.strokeStyle = col.alarm; ctx.lineWidth = 3.5; ctx.stroke();
+    }
+  }
+}
+function drawPod(ctx, gx, gy, name, col, doubled, ring) {
+  const [x, y] = px(gx, gy), s = ring ? U * 0.4 : U * 0.58;   // a carried pod is drawn smaller so its robot shows around it
+  ctx.fillStyle = col.podFill; ctx.strokeStyle = doubled ? col.alarm : (ring || col.pod); ctx.lineWidth = doubled ? 3.5 : (ring ? 3 : 2);
+  ctx.globalAlpha = ring ? 0.92 : 1;
+  ctx.fillRect(x - s / 2, y - s / 2, s, s); ctx.strokeRect(x - s / 2, y - s / 2, s, s); ctx.globalAlpha = 1;
+  ctx.fillStyle = doubled ? col.alarm : col.ink; ctx.font = (ring ? "600 13px " : "600 15px ") + css("--mono"); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(name, x, y + 1);
+}
+const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+const countLE = (arr, t) => { let n = 0; for (const v of arr) { if (v <= t) n++; else break; } return n; };
+
+function render() {
+  drawFloor(cvA.getContext("2d"), S.ideal, T);
+  drawFloor(cvB.getContext("2d"), S.traffic, T);
+  document.getElementById("clock").textContent = fmt(T);
+  const n = S.ideal.done.length;
+  document.getElementById("aDone").textContent = countLE(S.ideal.done, T) + "/" + n;
+  document.getElementById("bDone").textContent = countLE(S.traffic.done, T) + "/" + n;
+  let col = 0, pod = 0; for (const e of S.ideal.events) { if (e.t > T) break; if (e.kind === "collision") col++; else pod++; }
+  document.getElementById("aCol").textContent = col;
+  document.getElementById("aPod").textContent = pod;
+  document.getElementById("bWait").textContent = Math.round(waitedBy(T)) + " s";
+  document.getElementById("scrub").value = Math.round(1000 * T / endT());
+}
+function waitedBy(t) { return S.traffic.waits ? S.traffic.waits.reduce((a, w) => a + Math.max(0, Math.min(t, w[1]) - w[0]) * (t > w[0]), 0) : 0; }
+function frame(ts) {
+  if (!playing) return;
+  if (last != null) T += (ts - last) / 1000 * speed;
+  last = ts;
+  if (T >= endT()) { T = endT(); setPlaying(false); }
+  render();
+  if (playing) requestAnimationFrame(frame);
+}
+function setPlaying(p) { playing = p; last = null; document.getElementById("play").textContent = p ? "Pause" : (T >= endT() ? "Replay" : "Play"); if (p) requestAnimationFrame(frame); }
+document.getElementById("play").onclick = () => { if (!playing && T >= endT()) T = 0; setPlaying(!playing); };
+document.querySelectorAll(".speeds button").forEach(b => b.onclick = () => { speed = +b.dataset.s; document.querySelectorAll(".speeds button").forEach(x => x.setAttribute("aria-pressed", x === b)); });
+document.getElementById("scrub").oninput = e => { T = endT() * e.target.value / 1000; render(); };
+scenSel.onchange = () => { S = R.scenarios[+scenSel.value]; T = 0; setPlaying(false); render(); };
+T = 95; render();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { render(); drawCharts(); });
+new MutationObserver(() => { render(); drawCharts(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+/* ---------------- charts ---------------- */
+function lineChart(host, { series, xs, xLabel, yLabel, yFmt = v => v, xFmt = v => v, yMin, yMax, zero, h = 260 }) {
+  host.innerHTML = "";
+  const w = 520, padL = 46, padR = 16, padT = 12, padB = 40;
+  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" }, host);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const X = v => padL + (v - xMin) / (xMax - xMin) * (w - padL - padR);
+  const Y = v => padT + (1 - (v - yMin) / (yMax - yMin)) * (h - padT - padB);
+  const ticks = niceTicks(yMin, yMax, 5);
+  ticks.forEach(t => { el("line", { x1: padL, x2: w - padR, y1: Y(t), y2: Y(t), stroke: css("--line"), "stroke-width": t === 0 && zero ? 1.4 : 1 }, svg);
+    el("text", { x: padL - 6, y: Y(t) + 4, "text-anchor": "end" }, svg).textContent = yFmt(t); });
+  let lastX = -1e9;
+  xs.forEach(v => { if (X(v) - lastX < 30) return; lastX = X(v); el("text", { x: X(v), y: h - padB + 16, "text-anchor": "middle" }, svg).textContent = xFmt(v); });
+  el("text", { x: (padL + w - padR) / 2, y: h - 4, "text-anchor": "middle" }, svg).textContent = xLabel;
+  const yl = el("text", { x: 12, y: padT + (h - padT - padB) / 2, "text-anchor": "middle", transform: `rotate(-90 12 ${padT + (h - padT - padB) / 2})` }, svg); yl.textContent = yLabel;
+  series.forEach(s => {
+    const pts = s.pts.filter(p => p[1] != null && isFinite(p[1]));
+    if (!pts.length) return;
+    el("path", { d: pts.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(""), fill: "none", stroke: s.color, "stroke-width": s.width || 2.4, "stroke-dasharray": s.dash || "none", "stroke-linejoin": "round" }, svg);
+    pts.forEach(p => { if (p[2] === false) return; el("circle", { cx: X(p[0]), cy: Y(p[1]), r: p[2] === "hollow" ? 3.2 : 3.6, fill: p[2] === "hollow" ? css("--panel") : s.color, stroke: s.color, "stroke-width": 1.6 }, svg); });
+    if (s.endLabel) { const p = pts[pts.length - 1]; el("text", { x: X(p[0]) - 4, y: Y(p[1]) - 9, "text-anchor": "end", class: "lbl" }, svg).textContent = s.endLabel; }
+  });
+  return svg;
+}
+function niceTicks(a, b, n) { const span = b - a, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag;
+  const step = (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag; const out = []; for (let v = Math.ceil(a / step) * step; v <= b + 1e-9; v += step) out.push(+v.toFixed(6)); return out; }
+
+function drawCharts() {
+  // Finding 1
+  const F = DATA.fidelity.filter(r => true);
+  const rob = [...new Set(F.map(r => r.robots))];
+  const get = (m, k) => rob.map(n => [n, F.find(r => r.model === m && r.robots === n)[k]]);
+  const all = F.flatMap(r => [r.abc, r.random]);
+  lineChart(document.getElementById("figFid"), {
+    xs: rob, xLabel: "robots", yLabel: "orders / hr", yMin: 0, yMax: Math.ceil(Math.max(...all) / 50) * 50,
+    series: [
+      { pts: get("ideal", "abc"), color: css("--muted"), dash: "6 5", endLabel: "original" },
+      { pts: get("traffic", "abc"), color: css("--tape"), width: 3, endLabel: "traffic-aware" },
+    ] });
+  // time budget bars
+  const tb = DATA.timeBudget, host = document.getElementById("figTime"); host.innerHTML = "";
+  const w = 520, rowH = 30, svg = el("svg", { viewBox: `0 0 ${w} ${tb.length * rowH + 8}`, role: "img" }, host);
+  const maxV = Math.max(...tb.map(r => r.v));
+  tb.forEach((r, i) => { const y = i * rowH + 4, bw = (w - 220) * r.v / maxV;
+    el("text", { x: 0, y: y + 17, class: "lbl" }, svg).textContent = r.label;
+    el("rect", { x: 170, y: y + 4, width: bw, height: 18, rx: 2, fill: r.bad ? css("--alarm") : css("--muted"), "fill-opacity": r.bad ? 0.85 : 0.45 }, svg);
+    el("text", { x: 176 + bw, y: y + 17 }, svg).textContent = r.v.toFixed(1) + "%"; });
+  // Finding 2
+  const SP = DATA.spread, widths = [...new Set(SP.map(r => r.width))].sort((a, b) => a - b);
+  const sp = (m, k) => widths.map(wd => { const r = SP.find(x => x.model === m && x.robots === k && x.batch === 1 && x.width === wd); return [wd, r.gain_vs_abc_pct, (Math.abs(r.gain_vs_abc_pct) > r.gain_ci && wd !== 1) ? true : "hollow"]; });
+  const vals = SP.filter(r => r.batch === 1).map(r => r.gain_vs_abc_pct);
+  const svg2 = lineChart(document.getElementById("figSpread"), {
+    xs: widths, xLabel: "W  (pods the fast movers are spread across)", yLabel: "% vs plain ABC",
+    yMin: Math.floor(Math.min(...vals) / 5) * 5, yMax: Math.ceil(Math.max(...vals) / 5) * 5, zero: true, yFmt: v => (v > 0 ? "+" : "") + v,
+    series: [
+      { pts: sp("ideal", 4), color: css("--muted"), dash: "6 5" },
+      { pts: sp("traffic", 2), color: css("--r0") },
+      { pts: sp("traffic", 3), color: css("--r1") },
+      { pts: sp("traffic", 4), color: css("--r3"), width: 3 },
+    ] });
+  // Finding 3
+  const ST = DATA.streamPolicies, rates = [...new Set(ST.map(r => r.rate_per_hr))].sort((a, b) => a - b);
+  const pols = DATA.policyOrder, chartPols = DATA.chartPolicies, pcol = DATA.chartColors.map(css);
+  const streamSeries = chartPols.map((p, i) => {
+    const pts = []; for (const rt of rates) { const r = ST.find(x => x.release === p && x.rate_per_hr === rt); if (!r || r.stable_frac < 0.8) break; pts.push([rt, r.resp_mean_min]); }
+    return { pts, color: pcol[i], width: p === "pool" ? 3.2 : (p === "none" ? 2.6 : 2.2), dash: p === "none" ? "5 4" : "none" };
+  });
+  const yM = Math.max(...streamSeries.flatMap(s => s.pts.map(p => p[1])));
+  lineChart(document.getElementById("figStream"), { xs: rates, xLabel: "orders arriving per hour", yLabel: "mean response (min)", yMin: 0, yMax: Math.ceil(yM), series: streamSeries });
+  const key = document.getElementById("streamKey"); key.innerHTML = "";
+  chartPols.forEach((p, i) => { const s = document.createElement("span"); s.style.setProperty("--c", pcol[i]); if (p === "none") s.className = "dash"; s.textContent = DATA.policyNames[p]; key.appendChild(s); });
+  // capacity table
+  const caps = pols.map(p => { const r = ST.find(x => x.release === p); return { p, stable: r.stable_cap, sla: r.sla_cap, lo: r.sla_lo }; });
+  const bestS = Math.max(...caps.map(c => c.stable)), bestL = Math.max(...caps.map(c => c.sla));
+  const lowest = Math.min(...rates), highest = Math.max(...rates);
+  const slaTxt = c => !c.sla ? "never" : (c.lo > lowest ? `${c.lo}–${c.sla}/hr` : `up to ${c.sla}/hr`) + (c.sla === highest ? "+" : "");
+  const at = rt => p => { const r = ST.find(x => x.release === p && x.rate_per_hr === rt); return r && r.stable_frac >= 0.8 ? r.resp_mean_min.toFixed(1) : "—"; };
+  const midRate = DATA.midRate;
+
+  // Finding 4: station layout
+  const STN = DATA.station;
+  if (STN && STN.length) {
+    const host = document.getElementById("figStation"); host.innerHTML = "";
+    const w = 520, h = 250, padL = 46, padR = 12, padT = 12, padB = 36;
+    const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" }, host);
+    const robots = [...new Set(STN.map(r => r.robots))].sort((a, b) => a - b);
+    const lo = Math.min(...STN.map(r => r.gain_pct - r.gain_ci)), hi = Math.max(...STN.map(r => r.gain_pct + r.gain_ci));
+    const yMin = Math.floor(lo / 2) * 2, yMax = Math.ceil(hi / 2) * 2;
+    const Y = v => padT + (1 - (v - yMin) / (yMax - yMin)) * (h - padT - padB);
+    niceTicks(yMin, yMax, 5).forEach(t => { el("line", { x1: padL, x2: w - padR, y1: Y(t), y2: Y(t), stroke: css("--line"), "stroke-width": t === 0 ? 1.6 : 1 }, svg);
+      el("text", { x: padL - 6, y: Y(t) + 4, "text-anchor": "end" }, svg).textContent = (t > 0 ? "+" : "") + t + "%"; });
+    const gw = (w - padL - padR) / robots.length, bw = Math.min(34, gw / 3.2);
+    robots.forEach((k, i) => {
+      const cx = padL + gw * (i + 0.5);
+      el("text", { x: cx, y: h - padB + 16, "text-anchor": "middle" }, svg).textContent = k + (k === 1 ? " robot" : " robots");
+      [[1, css("--tape")], [5, css("--r0")]].forEach(([b, color], j) => {
+        const r = STN.find(x => x.robots === k && x.batch === b); if (!r) return;
+        const x = cx + (j === 0 ? -bw - 2 : 2), y0 = Y(0), y1 = Y(r.gain_pct);
+        el("rect", { x, y: Math.min(y0, y1), width: bw, height: Math.max(1, Math.abs(y1 - y0)), fill: color, "fill-opacity": 0.9, rx: 2 }, svg);
+        const xm = x + bw / 2;
+        el("line", { x1: xm, x2: xm, y1: Y(r.gain_pct - r.gain_ci), y2: Y(r.gain_pct + r.gain_ci), stroke: css("--ink"), "stroke-width": 1.3 }, svg);
+        [r.gain_pct - r.gain_ci, r.gain_pct + r.gain_ci].forEach(v => el("line", { x1: xm - 4, x2: xm + 4, y1: Y(v), y2: Y(v), stroke: css("--ink"), "stroke-width": 1.3 }, svg));
+      });
+    });
+  }
+  document.getElementById("capTable").innerHTML = `<thead><tr><th>Policy</th><th>Stable to</th><th>95% in 5 min</th><th>Avg at ${midRate}/hr</th></tr></thead><tbody>` +
+    caps.map(c => `<tr><td>${DATA.policyNames[c.p]}</td><td class="${c.stable === bestS ? "best" : ""}">${c.stable}/hr${c.stable === highest ? "+" : ""}</td><td class="${c.sla === bestL ? "best" : ""}">${slaTxt(c)}</td><td>${at(midRate)(c.p)} min</td></tr>`).join("") + "</tbody>";
+}
+drawCharts();
+</script>

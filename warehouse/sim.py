@@ -10,7 +10,7 @@ import simpy
 
 from . import config as C
 from .layout import PODS, PICK, shortest_path, travel_seconds, path_cells
-from .orders import generate_orders, POLICIES
+from .orders import generate_orders, get_slotting
 
 
 def run(policy="abc", seed=1, n_orders=C.N_ORDERS, n_robots=C.N_ROBOTS, batch_size=1):
@@ -18,7 +18,7 @@ def run(policy="abc", seed=1, n_orders=C.N_ORDERS, n_robots=C.N_ROBOTS, batch_si
     station = simpy.Resource(env, capacity=1)
     tasks = simpy.Store(env)
     orders = generate_orders(n_orders, seed)
-    slotting = POLICIES[policy](seed)
+    slotting = get_slotting(policy, seed)
 
     log = {"trips": [], "busy": [0.0] * n_robots, "order_done": {}}
     remaining = {oid: 0 for oid in range(len(orders))}

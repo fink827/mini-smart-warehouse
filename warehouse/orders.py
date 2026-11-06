@@ -58,4 +58,32 @@ def slot_abc(seed=None):
     return dict(zip(ranked, bins))
 
 
+def slot_spread(width):
+    """Congestion-aware ABC: like ABC, but the fastest movers are dealt out
+    round-robin across the `width` closest pods instead of filling the closest
+    pod first. width=1 is plain ABC; width=16 spreads over every pod.
+
+    Why: only one robot can hold a pod at a time. ABC puts the top 3 items in
+    one pod, so that pod becomes a single-server bottleneck once you have
+    several robots. Spreading trades a little travel for parallelism."""
+    def policy(seed=None):
+        skus, weights = make_skus()
+        ranked = sorted(skus, key=lambda s: -weights[s])
+        pods = pods_by_distance()
+        bins = []
+        for g in range(0, len(pods), width):
+            group = pods[g:g + width]
+            for _level in range(C.SKUS_PER_POD):
+                bins.extend(group)
+        return dict(zip(ranked, bins))
+    return policy
+
+
 POLICIES = {"random": slot_random, "abc": slot_abc}
+
+
+def get_slotting(name, seed):
+    """'random', 'abc', or 'spread:W' (congestion-aware ABC over the W closest pods)."""
+    if name.startswith("spread:"):
+        return slot_spread(int(name.split(":")[1]))(seed)
+    return POLICIES[name](seed)
